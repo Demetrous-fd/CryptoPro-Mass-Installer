@@ -42,6 +42,7 @@ if len(sys.argv) >= 2:
         exit(1)
     
     for arch in build_commands.keys():
+        os.environ["GOARCH"] = arch
         for command in build_commands[arch]:
             os_name, command = command.split(";", 1)
             os.environ["GOOS"] = os_name

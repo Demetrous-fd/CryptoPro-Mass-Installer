@@ -6,13 +6,13 @@ import (
 	"flag"
 	"fmt"
 	"io"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"sync"
 
 	"github.com/gocarina/gocsv"
 	"github.com/kardianos/osext"
+	"golang.org/x/exp/slog"
 )
 
 var (

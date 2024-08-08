@@ -3,12 +3,12 @@ package main
 import (
 	"errors"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 
 	cades "github.com/Demetrous-fd/CryptoPro-Adapter"
+	"golang.org/x/exp/slog"
 )
 
 func IsCertificateExists(thumbprint string) (bool, error) {
