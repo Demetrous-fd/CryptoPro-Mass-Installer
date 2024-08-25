@@ -5,12 +5,6 @@
 
 - КриптоПро ЭЦП 4-5 версии
 
-### Проблемы с Windows defender
-
-Windows Defender обнаруживает приложение как "Trojan:Win32/Phonzy.C!ml". Это распространённая проблема с программами на Golang: https://www.reddit.com/r/golang/comments/s1bh01/goexecutables_and_windows_defender/
-
-Решение проблемы: Добавьте папку приложения в исключения
-
 ### Как использовать
 
 0. [Экспортируйте сертификат с закрытом ключом в pfx файл](https://support.kontur.ru/ca/38782-kopirovanie_kontejnera_s_sertifikatom_na_dr#header_ad9459fa9)
@@ -53,3 +47,9 @@ Windows Defender обнаруживает приложение как "Trojan:Wi
    certmgr -delete -certificate -thumbprint 0000000000000000000000000000000000000000
    certmgr -delete -container \\.\Container\path
    ```
+
+### Проблемы с Windows defender
+
+Иногда Windows Defender обнаруживает приложение как "Trojan:Win32/Phonzy.C!ml". Это распространённая проблема с программами на Golang: https://www.reddit.com/r/golang/comments/s1bh01/goexecutables_and_windows_defender/
+
+Решение проблемы: Добавьте папку приложения в исключения
