@@ -6,7 +6,7 @@ import sys
 import os
 
 
-files = "src/main.go src/cades.go"
+files = " ".join([str(file) for file in Path("src").glob("*.go")])
 windows_folder = "bin/windows"
 linux_folder = "bin/linux"
 commands = {

@@ -1,32 +1,79 @@
 package main
 
 import (
-	"bufio"
-	"encoding/csv"
 	"flag"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
-	"sync"
+	"runtime"
 
-	"github.com/gocarina/gocsv"
 	"github.com/kardianos/osext"
+	"golang.org/x/exp/slices"
 	"golang.org/x/exp/slog"
 )
 
 var (
-	debugFlag *bool
-	fastFlag  *bool
+	versionFlag            *bool
+	debugFlag              *bool
+	waitFlag               *bool
+	containerPathArg       *string
+	containerNameArg       *string
+	certificatePathArg     *string
+	pfxPasswordArg         *string
+	pfxLocationArg         *string
+	containerExportableArg *bool
+	installFlagSet         *flag.FlagSet
+	exporterFlagSet        *flag.FlagSet
 )
 
 func init() {
-	debugFlag = flag.Bool("debug", false, "Enable debug output")
-	fastFlag = flag.Bool("fast", false, "Enable fast mode, can be errors")
+	flag.Usage = defaultHelpUsage
+	versionFlag = flag.Bool("version", false, "Отобразить версию программы")
+	debugFlag = flag.Bool("debug", false, "Включить отладочную информацию")
+	waitFlag = flag.Bool("wait", true, "Перед выходом ожидать нажатия клавиши enter")
+	containerExportableArg = flag.Bool("exportable", false, "Разрешить экспорт контейнеров")
+
+	installFlagSet = flag.NewFlagSet("install", flag.ExitOnError)
+	installFlagSet.Usage = installHelpUsage
+	containerPathArg = installFlagSet.String("cont", "", "[Требуется] Путь до pfx/папки контейнера")
+	certificatePathArg = installFlagSet.String("cert", "", "[Требуется] Путь до файла сертификата")
+	containerNameArg = installFlagSet.String("name", "", "Название контейнера")
+	pfxPasswordArg = installFlagSet.String("pfx_pass", "", "Пароль от pfx контейнера")
+
+	exporterFlagSet = flag.NewFlagSet("export", flag.ExitOnError)
+	exporterFlagSet.Usage = exporterHelpUsage
+	containerPathArg = exporterFlagSet.String("cont", "", "[Требуется] Название контейнера или путь до папки")
+	containerNameArg = exporterFlagSet.String("name", "", "Название контейнера")
+	pfxPasswordArg = exporterFlagSet.String("pass", "", "Пароль от pfx контейнера")
+	pfxLocationArg = exporterFlagSet.String("o", "", "Путь до нового pfx контейнера")
 }
 
 func main() {
+	code := 0
+	defer func() {
+		os.Exit(code)
+	}()
+
 	flag.Parse()
+	flagArgs := flag.Args()
+	if len(flagArgs) > 1 {
+		cmd := flagArgs[0]
+		switch cmd {
+		case "install":
+			installFlagSet.Parse(flagArgs[1:])
+		case "export":
+			exporterFlagSet.Parse(flagArgs[1:])
+		default:
+		}
+	}
+
+	if *versionFlag {
+		fmt.Println("Mass version 1.2.0")
+		fmt.Println("Repository: https://github.com/Demetrous-fd/CryptoPro-Mass-Installer")
+		fmt.Println("Maintainer: Lazydeus (Demetrous-fd)")
+		return
+	}
 
 	loggerLevel := &slog.LevelVar{}
 	if *debugFlag {
@@ -39,7 +86,9 @@ func main() {
 
 	logFile, err := os.Create("logger.log")
 	if err != nil {
-		panic(err)
+		code = 1
+		slog.Error(err.Error())
+		return
 	}
 	defer logFile.Close()
 
@@ -48,47 +97,55 @@ func main() {
 	logger := slog.New(handler)
 	slog.SetDefault(logger)
 
-	gocsv.SetCSVReader(func(in io.Reader) gocsv.CSVReader {
-		r := csv.NewReader(in)
-		r.Comma = ';'
-		r.Comment = '#'
-		return r
-	})
-
 	pwd, err := osext.ExecutableFolder()
 	if err != nil {
-		panic(err)
+		code = 1
+		slog.Error(err.Error())
+		return
 	}
 	certPath := filepath.Join(pwd, "certs")
-	_ = os.MkdirAll(certPath, os.ModePerm)
+	_ = os.Mkdir(certPath, os.ModePerm)
 
-	in, err := os.Open("data.csv")
+	rootContainersFolder, err := getRootContainersFolder(certPath)
 	if err != nil {
-		panic(err)
+		code = 1
+		slog.Error(err.Error())
+		return
 	}
-	defer in.Close()
-
-	certificates := []*Cert{}
-	if err := gocsv.UnmarshalFile(in, &certificates); err != nil {
-		panic(err)
+	if runtime.GOOS == "windows" {
+		defer deleteVirtualDisk(rootContainersFolder)
 	}
 
-	var wg sync.WaitGroup
-	for _, cert := range certificates {
-		if *fastFlag {
-			wg.Add(1)
-			go func(cert Cert) {
-				defer wg.Done()
-				InstallCertificate(certPath, &cert)
-			}(*cert)
-		} else {
-			InstallCertificate(certPath, cert)
-			slog.Info("")
+	// Parsing subcommand flags
+	if slices.Contains(flagArgs, "export") {
+		exportParams := &ExportContainerParams{
+			ContainerPath: *containerPathArg,
+			ContainerName: *containerNameArg,
+			PfxPassword:   *pfxPasswordArg,
+			PfxLocation:   *pfxLocationArg,
 		}
-	}
+		err := exportContainerToPfxCLI(certPath, rootContainersFolder, exportParams)
+		if err != nil {
+			code = 2
+			slog.Error(err.Error())
+			return
+		}
 
-	wg.Wait()
-	fmt.Print("\n\n\nУстановка сертификатов завершена, нажмите Enter:")
-	input := bufio.NewScanner(os.Stdin)
-	input.Scan()
+	} else if slices.Contains(flagArgs, "install") {
+		installParams := &ESignatureInstallParams{
+			ContainerPath:   *containerPathArg,
+			ContainerName:   *containerNameArg,
+			CertificatePath: *certificatePathArg,
+			PfxPassword:     *pfxPasswordArg,
+			Exportable:      *containerExportableArg,
+		}
+		err := installESignatureCLI(certPath, rootContainersFolder, installParams, false)
+		if err != nil {
+			code = 2
+			slog.Error(err.Error())
+			return
+		}
+	} else {
+		installESignatureFromFile(certPath, rootContainersFolder, *waitFlag, *containerExportableArg)
+	}
 }
