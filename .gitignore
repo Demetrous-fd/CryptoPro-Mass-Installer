@@ -2,3 +2,4 @@ bin/
 README.pdf
 data.csv
 certs/
+src/logger.log

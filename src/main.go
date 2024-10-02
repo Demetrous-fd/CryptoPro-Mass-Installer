@@ -14,17 +14,20 @@ import (
 )
 
 var (
-	versionFlag            *bool
-	debugFlag              *bool
-	waitFlag               *bool
-	containerPathArg       *string
-	containerNameArg       *string
-	certificatePathArg     *string
-	pfxPasswordArg         *string
-	pfxLocationArg         *string
-	containerExportableArg *bool
-	installFlagSet         *flag.FlagSet
-	exporterFlagSet        *flag.FlagSet
+	versionFlag             *bool
+	debugFlag               *bool
+	waitFlag                *bool
+	containerPathInstallArg *string
+	containerPathExportArg  *string
+	containerNameInstallArg *string
+	containerNameExportArg  *string
+	certificatePathArg      *string
+	pfxPasswordInstallArg   *string
+	pfxPasswordExportArg    *string
+	pfxLocationArg          *string
+	containerExportableArg  *bool
+	installFlagSet          *flag.FlagSet
+	exporterFlagSet         *flag.FlagSet
 )
 
 func init() {
@@ -36,16 +39,16 @@ func init() {
 
 	installFlagSet = flag.NewFlagSet("install", flag.ExitOnError)
 	installFlagSet.Usage = installHelpUsage
-	containerPathArg = installFlagSet.String("cont", "", "[Требуется] Путь до pfx/папки контейнера")
+	containerPathInstallArg = installFlagSet.String("cont", "", "[Требуется] Путь до pfx/папки контейнера")
 	certificatePathArg = installFlagSet.String("cert", "", "[Требуется] Путь до файла сертификата")
-	containerNameArg = installFlagSet.String("name", "", "Название контейнера")
-	pfxPasswordArg = installFlagSet.String("pfx_pass", "", "Пароль от pfx контейнера")
+	containerNameInstallArg = installFlagSet.String("name", "", "Название контейнера")
+	pfxPasswordInstallArg = installFlagSet.String("pfx_pass", "", "Пароль от pfx контейнера")
 
 	exporterFlagSet = flag.NewFlagSet("export", flag.ExitOnError)
 	exporterFlagSet.Usage = exporterHelpUsage
-	containerPathArg = exporterFlagSet.String("cont", "", "[Требуется] Название контейнера или путь до папки")
-	containerNameArg = exporterFlagSet.String("name", "", "Название контейнера")
-	pfxPasswordArg = exporterFlagSet.String("pass", "", "Пароль от pfx контейнера")
+	containerPathExportArg = exporterFlagSet.String("cont", "", "[Требуется] Название контейнера или путь до папки")
+	containerNameExportArg = exporterFlagSet.String("name", "", "Название контейнера")
+	pfxPasswordExportArg = exporterFlagSet.String("pass", "", "Пароль от pfx контейнера")
 	pfxLocationArg = exporterFlagSet.String("o", "", "Путь до нового pfx контейнера")
 }
 
@@ -59,17 +62,18 @@ func main() {
 	flagArgs := flag.Args()
 	if len(flagArgs) > 1 {
 		cmd := flagArgs[0]
+		args := flagArgs[1:]
 		switch cmd {
 		case "install":
-			installFlagSet.Parse(flagArgs[1:])
+			installFlagSet.Parse(args)
 		case "export":
-			exporterFlagSet.Parse(flagArgs[1:])
+			exporterFlagSet.Parse(args)
 		default:
 		}
 	}
 
 	if *versionFlag {
-		fmt.Println("Mass version 1.2.0")
+		fmt.Println("Mass version 1.2.1")
 		fmt.Println("Repository: https://github.com/Demetrous-fd/CryptoPro-Mass-Installer")
 		fmt.Println("Maintainer: Lazydeus (Demetrous-fd)")
 		return
@@ -119,9 +123,9 @@ func main() {
 	// Parsing subcommand flags
 	if slices.Contains(flagArgs, "export") {
 		exportParams := &ExportContainerParams{
-			ContainerPath: *containerPathArg,
-			ContainerName: *containerNameArg,
-			PfxPassword:   *pfxPasswordArg,
+			ContainerPath: *containerPathExportArg,
+			ContainerName: *containerNameExportArg,
+			PfxPassword:   *pfxPasswordExportArg,
 			PfxLocation:   *pfxLocationArg,
 		}
 		err := exportContainerToPfxCLI(certPath, rootContainersFolder, exportParams)
@@ -133,10 +137,10 @@ func main() {
 
 	} else if slices.Contains(flagArgs, "install") {
 		installParams := &ESignatureInstallParams{
-			ContainerPath:   *containerPathArg,
-			ContainerName:   *containerNameArg,
+			ContainerPath:   *containerPathInstallArg,
+			ContainerName:   *containerNameInstallArg,
 			CertificatePath: *certificatePathArg,
-			PfxPassword:     *pfxPasswordArg,
+			PfxPassword:     *pfxPasswordInstallArg,
 			Exportable:      *containerExportableArg,
 		}
 		err := installESignatureCLI(certPath, rootContainersFolder, installParams, false)
