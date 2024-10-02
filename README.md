@@ -1,6 +1,8 @@
 # CryptoPro Mass Installer
 Приложение для быстрого добавления множества электронных подписей на станциях с Windows и Linux.
 
+[Ссылка на скачивание последней версии программы](https://github.com/Demetrous-fd/CryptoPro-Mass-Installer/releases/latest)
+
 ### Требования для запуска
 
 - КриптоПро ЭЦП 4-5 версии
