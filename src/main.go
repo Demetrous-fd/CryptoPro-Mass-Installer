@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/kardianos/osext"
 	"golang.org/x/exp/slices"
 	"golang.org/x/exp/slog"
 )
@@ -73,7 +72,7 @@ func main() {
 	}
 
 	if *versionFlag {
-		fmt.Println("Mass version 1.2.1")
+		fmt.Println("Mass version 1.2.2")
 		fmt.Println("Repository: https://github.com/Demetrous-fd/CryptoPro-Mass-Installer")
 		fmt.Println("Maintainer: Lazydeus (Demetrous-fd)")
 		return
@@ -101,12 +100,13 @@ func main() {
 	logger := slog.New(handler)
 	slog.SetDefault(logger)
 
-	pwd, err := osext.ExecutableFolder()
+	pwd, err := os.Getwd()
 	if err != nil {
 		code = 1
 		slog.Error(err.Error())
 		return
 	}
+
 	certPath := filepath.Join(pwd, "certs")
 	_ = os.Mkdir(certPath, os.ModePerm)
 
