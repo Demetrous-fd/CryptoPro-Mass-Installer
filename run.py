@@ -16,12 +16,12 @@ commands = {
 
 build_commands = {
     "amd64": [
-        f"windows;go build -o {windows_folder}/mass.exe {files}",
-        f"linux;go build -o {linux_folder}/mass {files}",
+        f"windows;go build -trimpath -ldflags \"-s -w\"  -o {windows_folder}/mass.exe {files}",
+        f"linux;go build -trimpath -ldflags \"-s -w\"  -o {linux_folder}/mass {files}",
     ],
     "386": [
-        f"windows;go build -o {windows_folder}/mass_32.exe {files}",
-        f"linux;go build -o {linux_folder}/mass_32 {files}",
+        f"windows;go build -trimpath -ldflags \"-s -w\"  -o {windows_folder}/mass_32.exe {files}",
+        f"linux;go build -trimpath -ldflags \"-s -w\"  -o {linux_folder}/mass_32 {files}",
     ],
 }
 
