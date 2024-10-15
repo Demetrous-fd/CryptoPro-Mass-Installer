@@ -8,6 +8,8 @@ github.com/Demetrous-fd/CryptoPro-Adapter v0.0.0-20240909055958-21c4e359abc0 h1:
 github.com/Demetrous-fd/CryptoPro-Adapter v0.0.0-20240909055958-21c4e359abc0/go.mod h1:u3GJFQjJZ7lfZv/guG3cnAISW6Ua9B7dOhBYCErEXXA=
 github.com/Demetrous-fd/CryptoPro-Adapter v0.0.0-20240920133223-9d4223a17f4d h1:0ARW1BVvRrdRAlroy0S8fpMyju9jMtBwpbJv6l/Bwno=
 github.com/Demetrous-fd/CryptoPro-Adapter v0.0.0-20240920133223-9d4223a17f4d/go.mod h1:u3GJFQjJZ7lfZv/guG3cnAISW6Ua9B7dOhBYCErEXXA=
+github.com/Demetrous-fd/CryptoPro-Adapter v0.0.0-20241009063443-a965bb04c1af h1:gl4IIMPGJWovLcgfDY9Q5pNbLX3T3qgUpd4yaVZwzXo=
+github.com/Demetrous-fd/CryptoPro-Adapter v0.0.0-20241009063443-a965bb04c1af/go.mod h1:u3GJFQjJZ7lfZv/guG3cnAISW6Ua9B7dOhBYCErEXXA=
 github.com/davecgh/go-spew v1.1.0/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/gocarina/gocsv v0.0.0-20240520201108-78e41c74b4b1 h1:FWNFq4fM1wPfcK40yHE5UO3RUdSNPaBC+j3PokzA6OQ=

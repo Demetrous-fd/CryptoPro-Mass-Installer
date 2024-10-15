@@ -7,7 +7,9 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
+	cades "github.com/Demetrous-fd/CryptoPro-Adapter"
 	"github.com/gocarina/gocsv"
 	"golang.org/x/exp/slog"
 )
@@ -77,4 +79,54 @@ func installESignatureCLI(certPath string, rootContainersFolder string, installP
 		fmt.Scanln()
 	}
 	return nil
+}
+
+func installRootCertificates(certsFolderPath string) {
+	rootFolder := filepath.Join(certsFolderPath, "root")
+	if _, err := os.Stat(rootFolder); errors.Is(err, os.ErrNotExist) {
+		slog.Debug(fmt.Sprintf("Root folder[%s] not exists", rootFolder))
+		return
+	}
+
+	folderEntity, err := os.ReadDir(rootFolder)
+	if err != nil {
+		slog.Debug(fmt.Sprintf("Cant get entities from root folder[%s], error: %s", rootFolder, err.Error()))
+		return
+	}
+
+	for _, entity := range folderEntity {
+		if entity.IsDir() {
+			continue
+		}
+
+		filename := entity.Name()
+		path := filepath.Join(rootFolder, filename)
+
+		if strings.HasSuffix(filename, ".p7b") {
+			err = InstallRootCertificate(path)
+			if err == nil {
+				slog.Info(fmt.Sprintf("Корневой сертификат[%s] установлен", filename))
+			}
+			continue
+		}
+
+		if strings.HasSuffix(filename, ".cer") {
+			thumbprint, err := cades.GetCertificateThumbprintFromFile(path)
+			if err != nil {
+				slog.Debug(fmt.Sprintf("Cant get thumbprint from file[%s], error: %s", path, err.Error()))
+				continue
+			}
+
+			certExists, _ := IsCertificateExists(thumbprint, "uRoot")
+
+			if !certExists {
+				err = InstallRootCertificate(path)
+				if err == nil {
+					slog.Info(fmt.Sprintf("Корневой сертификат[%s] установлен", filename))
+				}
+			} else {
+				slog.Debug(fmt.Sprintf("Root certificate[%s] exists in store[uRoot]", path))
+			}
+		}
+	}
 }

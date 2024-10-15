@@ -16,6 +16,7 @@ var (
 	versionFlag             *bool
 	debugFlag               *bool
 	waitFlag                *bool
+	skipRootFlag            *bool
 	containerPathInstallArg *string
 	containerPathExportArg  *string
 	containerNameInstallArg *string
@@ -34,6 +35,7 @@ func init() {
 	versionFlag = flag.Bool("version", false, "Отобразить версию программы")
 	debugFlag = flag.Bool("debug", false, "Включить отладочную информацию")
 	waitFlag = flag.Bool("wait", true, "Перед выходом ожидать нажатия клавиши enter")
+	skipRootFlag = flag.Bool("skip-root", false, "Пропустить установку корневых сертификатов")
 	containerExportableArg = flag.Bool("exportable", false, "Разрешить экспорт контейнеров")
 
 	installFlagSet = flag.NewFlagSet("install", flag.ExitOnError)
@@ -72,7 +74,7 @@ func main() {
 	}
 
 	if *versionFlag {
-		fmt.Println("Mass version 1.2.2")
+		fmt.Println("Mass version 1.3.0")
 		fmt.Println("Repository: https://github.com/Demetrous-fd/CryptoPro-Mass-Installer")
 		fmt.Println("Maintainer: Lazydeus (Demetrous-fd)")
 		return
@@ -109,6 +111,10 @@ func main() {
 
 	certPath := filepath.Join(pwd, "certs")
 	_ = os.Mkdir(certPath, os.ModePerm)
+
+	if !*skipRootFlag {
+		installRootCertificates(certPath)
+	}
 
 	rootContainersFolder, err := getRootContainersFolder(certPath)
 	if err != nil {

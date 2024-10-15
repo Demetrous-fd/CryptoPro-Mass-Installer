@@ -11,9 +11,9 @@ import (
 	"golang.org/x/exp/slog"
 )
 
-func IsCertificateExists(thumbprint string) (bool, error) {
+func IsCertificateExists(thumbprint string, store string) (bool, error) {
 	manager := cades.CadesManager{}
-	exists, err := manager.IsCertificateExists(thumbprint)
+	exists, err := manager.IsCertificateExists(thumbprint, store)
 	slog.Debug(fmt.Sprintf("Certificate with thumbprint is exists: %v", exists))
 	return exists, err
 }
@@ -90,6 +90,12 @@ func LinkCertWithContainer(path, containerName string) (bool, error) {
 	return result, err
 }
 
+func InstallRootCertificate(path string) error {
+	m := cades.CadesManager{}
+	err := m.InstallCertificate(path, "uRoot")
+	return err
+}
+
 type ESignatureInstallParams struct {
 	ContainerPath   string `csv:"pfx,container"`
 	ContainerName   string
@@ -121,7 +127,7 @@ func InstallESignature(rootContainersFolder string, installParams *ESignatureIns
 		return
 	}
 
-	ok, _ := IsCertificateExists(thumbprint)
+	ok, _ := IsCertificateExists(thumbprint, "")
 	if ok {
 		slog.Warn(fmt.Sprintf("Сертификат[%s] с thumbprint:%s существует в хранилище.", certificateFilename, thumbprint))
 		return
