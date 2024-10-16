@@ -74,7 +74,7 @@ func main() {
 	}
 
 	if *versionFlag {
-		fmt.Println("Mass version 1.3.0")
+		fmt.Println("Mass version 1.3.1")
 		fmt.Println("Repository: https://github.com/Demetrous-fd/CryptoPro-Mass-Installer")
 		fmt.Println("Maintainer: Lazydeus (Demetrous-fd)")
 		return
