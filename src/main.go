@@ -112,10 +112,6 @@ func main() {
 	certPath := filepath.Join(pwd, "certs")
 	_ = os.Mkdir(certPath, os.ModePerm)
 
-	if !*skipRootFlag {
-		installRootCertificates(certPath)
-	}
-
 	rootContainersFolder, err := getRootContainersFolder(certPath)
 	if err != nil {
 		code = 1
@@ -156,6 +152,10 @@ func main() {
 			return
 		}
 	} else {
+		if !*skipRootFlag {
+			installRootCertificates(certPath)
+		}
+
 		installESignatureFromFile(certPath, rootContainersFolder, *waitFlag, *containerExportableArg)
 	}
 }
