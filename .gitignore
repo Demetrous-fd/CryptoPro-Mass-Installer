@@ -4,3 +4,4 @@ data.csv
 certs/
 src/logger.log
 logger.log
+test/test_certs

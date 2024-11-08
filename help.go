@@ -6,7 +6,7 @@ import (
 	"os"
 )
 
-func defaultHelpUsage() {
+func DefaultHelpUsage() {
 	intro := `
 Использование:
   mass [flags] <command> [command flags]`
@@ -23,26 +23,26 @@ func defaultHelpUsage() {
 	fmt.Fprintf(os.Stderr, "Запустите `mass <command> -h` чтобы получить справку по определенной команде\n\n")
 }
 
-func installHelpUsage() {
+func InstallHelpUsage() {
 	intro := `
 Использование:
   mass install -cont "..." -cert "..." [flags]`
 	fmt.Fprintln(os.Stderr, intro)
 
 	fmt.Fprintln(os.Stderr, "\nFlags:")
-	installFlagSet.PrintDefaults()
+	InstallFlagSet.PrintDefaults()
 
 	fmt.Fprintln(os.Stderr)
 }
 
-func exporterHelpUsage() {
+func ExporterHelpUsage() {
 	intro := `
 Использование:
   mass export -cont "..." [flags]`
 	fmt.Fprintln(os.Stderr, intro)
 
 	fmt.Fprintln(os.Stderr, "\nFlags:")
-	exporterFlagSet.PrintDefaults()
+	ExporterFlagSet.PrintDefaults()
 
 	fmt.Fprintln(os.Stderr)
 }

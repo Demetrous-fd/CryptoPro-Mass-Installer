@@ -1,4 +1,4 @@
-package main
+package core
 
 import (
 	"encoding/csv"
@@ -14,7 +14,7 @@ import (
 	"golang.org/x/exp/slog"
 )
 
-func installESignatureFromFile(certPath string, rootContainersFolder string, waitFlag bool, exportable bool) {
+func InstallESignatureFromFile(certPath string, rootContainersFolder string, waitFlag bool, exportable bool) {
 	gocsv.SetCSVReader(func(in io.Reader) gocsv.CSVReader {
 		r := csv.NewReader(in)
 		r.Comma = ';'
@@ -49,7 +49,7 @@ func installESignatureFromFile(certPath string, rootContainersFolder string, wai
 	}
 }
 
-func installESignatureCLI(certPath string, rootContainersFolder string, installParams *ESignatureInstallParams, waitFlag bool) error {
+func InstallESignatureCLI(certPath string, rootContainersFolder string, installParams *ESignatureInstallParams, waitFlag bool) error {
 	if installParams.CertificatePath == "" {
 		slog.Error("Не указан путь до сертификата, используйте флаг -cert для указания пути")
 		return errors.New("certificate not set")
@@ -59,14 +59,14 @@ func installESignatureCLI(certPath string, rootContainersFolder string, installP
 		return errors.New("container not set")
 	}
 
-	containerPath, err := getFilePath(installParams.ContainerPath, certPath)
+	containerPath, err := GetFilePath(installParams.ContainerPath, certPath)
 	if err != nil {
 		slog.Error(err.Error())
 		return err
 	}
 	installParams.ContainerPath = containerPath
 
-	certificatePath, err := getFilePath(installParams.CertificatePath, certPath)
+	certificatePath, err := GetFilePath(installParams.CertificatePath, certPath)
 	if err != nil {
 		slog.Error(err.Error())
 		return err
@@ -81,7 +81,7 @@ func installESignatureCLI(certPath string, rootContainersFolder string, installP
 	return nil
 }
 
-func installRootCertificates(certsFolderPath string) {
+func InstallRootCertificates(certsFolderPath string) {
 	rootFolder := filepath.Join(certsFolderPath, "root")
 	if _, err := os.Stat(rootFolder); errors.Is(err, os.ErrNotExist) {
 		slog.Debug(fmt.Sprintf("Root folder[%s] not exists", rootFolder))

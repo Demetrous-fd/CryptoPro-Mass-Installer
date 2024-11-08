@@ -6,7 +6,7 @@ import sys
 import os
 
 
-files = " ".join([str(file) for file in Path("src").glob("*.go")])
+files = " ".join(map(str, Path().glob("*.go")))
 windows_folder = "bin/windows"
 linux_folder = "bin/linux"
 commands = {

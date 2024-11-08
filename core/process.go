@@ -1,4 +1,4 @@
-package main
+package core
 
 import (
 	"fmt"
@@ -10,7 +10,7 @@ import (
 	"golang.org/x/text/encoding/charmap"
 )
 
-func executeSubst(args ...string) error {
+func ExecuteSubst(args ...string) error {
 	cmd := exec.Command("subst", args...)
 
 	stdoutStderr, err := cmd.CombinedOutput()
@@ -27,7 +27,7 @@ func executeSubst(args ...string) error {
 	return err
 }
 
-func createVirtualDisk(virtualDiskPath string) (string, error) {
+func CreateVirtualDisk(virtualDiskPath string) (string, error) {
 	letters := "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 	var availableDiskLetter string
 	var err error
@@ -39,7 +39,7 @@ func createVirtualDisk(virtualDiskPath string) (string, error) {
 		}
 
 		availableDiskLetter = diskLetter
-		err = executeSubst(availableDiskLetter, virtualDiskPath)
+		err = ExecuteSubst(availableDiskLetter, virtualDiskPath)
 		if err == nil {
 			break
 		}
@@ -48,10 +48,10 @@ func createVirtualDisk(virtualDiskPath string) (string, error) {
 	return diskLetter, err
 }
 
-func deleteVirtualDisk(diskLetter string) error {
+func DeleteVirtualDisk(diskLetter string) error {
 	letter := diskLetter[:2]
 
-	err := executeSubst(letter, "/D")
+	err := ExecuteSubst(letter, "/D")
 	if err != nil {
 		slog.Error(fmt.Sprintf("Не удалось автоматически удалить виртуальный диск, выполните команду в консоли: subst %s /D", letter))
 		return err

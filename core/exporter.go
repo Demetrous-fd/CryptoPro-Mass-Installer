@@ -1,4 +1,4 @@
-package main
+package core
 
 import (
 	"errors"
@@ -17,7 +17,7 @@ type ExportContainerParams struct {
 	PfxLocation   string
 }
 
-func exportContainerToPfxCLI(certPath string, rootContainersFolder string, params *ExportContainerParams) error {
+func ExportContainerToPfxCLI(certFolderPath string, rootContainersFolder string, params *ExportContainerParams) error {
 	if params.ContainerPath == "" {
 		slog.Error("Не указан имя/путь до контейнера, используйте флаг -cont для указания имени/пути")
 		return errors.New("container not set")
@@ -26,12 +26,12 @@ func exportContainerToPfxCLI(certPath string, rootContainersFolder string, param
 	var container *cades.Container
 	var containerBeforeExists bool
 	var err error
-	isContainer := isContainerName(params.ContainerPath)
+	isContainer := IsContainerName(params.ContainerPath)
 
 	if !isContainer {
-		containerPath, errPath := getFilePath(params.ContainerPath, certPath)
+		containerPath, errPath := GetFilePath(params.ContainerPath, certFolderPath)
 		if errPath != nil {
-			params.ContainerPath = clearDoubleSlashes(params.ContainerPath)
+			params.ContainerPath = ClearDoubleSlashes(params.ContainerPath)
 			container, err = GetContainer(params.ContainerPath)
 			if err != nil {
 				slog.Error(errPath.Error())
@@ -55,7 +55,7 @@ func exportContainerToPfxCLI(certPath string, rootContainersFolder string, param
 			slog.Debug(fmt.Sprintf("Контейнер установлен из папки[%s], Имя контейнера:'%s'", containerFilename, container.ContainerName))
 		}
 	} else {
-		params.ContainerPath = clearDoubleSlashes(params.ContainerPath)
+		params.ContainerPath = ClearDoubleSlashes(params.ContainerPath)
 		container, err = GetContainer(params.ContainerPath)
 		if err != nil {
 			slog.Error(err.Error())
@@ -63,28 +63,29 @@ func exportContainerToPfxCLI(certPath string, rootContainersFolder string, param
 		}
 	}
 
-	var containerName string
-	if params.ContainerName == "" {
+	filename := filepath.Base(params.PfxLocation)
+	if !strings.Contains(filename, ".pfx") {
 		containerNameRaw := strings.Split(container.ContainerName, `\`)
-		containerName = containerNameRaw[len(containerNameRaw)-1]
-	} else {
-		containerName = params.ContainerName
+		containerName := containerNameRaw[len(containerNameRaw)-1]
+		filename = fmt.Sprintf("%s.pfx", containerName)
 	}
 
 	var pfxLocation string
 	if params.PfxLocation == "" {
-		if isContainer {
-			pfxLocation = filepath.Join(filepath.Dir(certPath), fmt.Sprintf("%s.pfx", containerName))
-		} else {
-			pfxLocation = filepath.Join(filepath.Dir(params.ContainerPath), fmt.Sprintf("%s.pfx", containerName))
-		}
+		pfxLocation = filepath.Join(filepath.Dir(certFolderPath), filename)
 	} else {
-		pfxLocation = params.PfxLocation
+		pfxLocation = filepath.Join(filepath.Dir(params.PfxLocation), filename)
 	}
 
-	container, err = RenameContainer(container, containerName)
-	if err != nil {
-		slog.Debug(fmt.Sprintf("Не удалось переименовать контейнер [%s] -> [%s]", container.ContainerName, containerName))
+	if params.ContainerName != "" {
+		container, err = RenameContainer(container, params.ContainerName)
+
+		if errors.Is(err, cades.ErrContainerNotExportable) {
+			slog.Debug(fmt.Sprintf("Контейнер[%s] не экспортируемый", container.ContainerName))
+			return cades.ErrContainerNotExportable
+		} else if err != nil {
+			slog.Debug(fmt.Sprintf("Не удалось переименовать контейнер [%s] -> [%s]", container.ContainerName, params.ContainerName))
+		}
 	}
 
 	pfxPath, err := ExportContainerToPfx(container, pfxLocation, params.PfxPassword)
@@ -94,10 +95,10 @@ func exportContainerToPfxCLI(certPath string, rootContainersFolder string, param
 		return err
 	}
 
-	slog.Info(fmt.Sprintf("Контейнер[%s] экспортирован в файл: %s", containerName, pfxPath))
+	slog.Info(fmt.Sprintf("Контейнер[%s] экспортирован в файл: %s", params.ContainerName, pfxPath))
 
 	m := cades.CadesManager{}
-	container, err = m.GetContainer(containerName)
+	container, err = m.GetContainer(params.ContainerName)
 	if err == nil && !isContainer && !containerBeforeExists {
 		DeleteContainer(container)
 	}

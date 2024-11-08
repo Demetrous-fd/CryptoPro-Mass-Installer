@@ -1,4 +1,4 @@
-package main
+package core
 
 import (
 	"fmt"
@@ -14,14 +14,14 @@ import (
 
 var CONTAINER_PATTERN = regexp.MustCompile(`(?m)^\\\\\.\\.*\\.*$`)
 
-func getRootContainersFolder(virtualDiskPath string) (string, error) {
+func GetRootContainersFolder(virtualDiskPath string) (string, error) {
 	var rootContainersFolder string
 	if runtime.GOOS == "windows" {
 		if virtualDiskPath == "" {
 			return rootContainersFolder, fmt.Errorf("cant create virtual disk, virtualDiskPath not set")
 		}
 
-		disk, err := createVirtualDisk(virtualDiskPath)
+		disk, err := CreateVirtualDisk(virtualDiskPath)
 		if err != nil {
 			return disk, err
 		}
@@ -39,7 +39,7 @@ func getRootContainersFolder(virtualDiskPath string) (string, error) {
 	return rootContainersFolder, nil
 }
 
-func getFilePath(path string, certPath string) (string, error) {
+func GetFilePath(path string, certPath string) (string, error) {
 	var filePath string
 	if _, err := os.Stat(path); err == nil {
 		return path, nil
@@ -58,12 +58,12 @@ func getFilePath(path string, certPath string) (string, error) {
 	return filePath, fmt.Errorf("не удалось найти контейнер: %s", path)
 }
 
-func isContainerName(path string) bool {
+func IsContainerName(path string) bool {
 	result := CONTAINER_PATTERN.FindString(path)
 	return result != ""
 }
 
-func clearDoubleSlashes(text string) string {
+func ClearDoubleSlashes(text string) string {
 	doubleSlashCount := strings.Count(text, `\\`)
 	if doubleSlashCount < 1 {
 		return text
