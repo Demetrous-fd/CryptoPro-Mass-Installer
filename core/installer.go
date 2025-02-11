@@ -14,7 +14,7 @@ import (
 	"golang.org/x/exp/slog"
 )
 
-func InstallESignatureFromFile(certPath string, rootContainersFolder string, waitFlag bool, exportable bool) {
+func InstallESignatureFromFile(certPath string, rootContainersFolder string, exportable bool) {
 	gocsv.SetCSVReader(func(in io.Reader) gocsv.CSVReader {
 		r := csv.NewReader(in)
 		r.Comma = ';'
@@ -41,11 +41,6 @@ func InstallESignatureFromFile(certPath string, rootContainersFolder string, wai
 		installParams.CertificatePath = certificatePath
 		installParams.Exportable = exportable
 		InstallESignature(rootContainersFolder, installParams)
-	}
-
-	if waitFlag {
-		fmt.Print("\n\n\nУстановка сертификатов завершена, нажмите Enter:")
-		fmt.Scanln()
 	}
 }
 

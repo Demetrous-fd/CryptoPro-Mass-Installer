@@ -3,12 +3,12 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io"
 	"lazydeus/CryptoMassInstall/core"
 	"os"
 	"path/filepath"
 	"runtime"
 
+	slogmulti "github.com/samber/slog-multi"
 	"golang.org/x/exp/slices"
 	"golang.org/x/exp/slog"
 )
@@ -34,7 +34,7 @@ var (
 func init() {
 	flag.Usage = DefaultHelpUsage
 	versionFlag = flag.Bool("version", false, "Отобразить версию программы")
-	debugFlag = flag.Bool("debug", false, "Включить отладочную информацию")
+	debugFlag = flag.Bool("debug", false, "Включить отладочную информацию в консоли")
 	waitFlag = flag.Bool("wait", true, "Перед выходом ожидать нажатия клавиши enter")
 	skipRootFlag = flag.Bool("skip-root", false, "Пропустить установку корневых сертификатов")
 	containerExportableArg = flag.Bool("exportable", false, "Разрешить экспорт контейнеров")
@@ -75,7 +75,7 @@ func main() {
 	}
 
 	if *versionFlag {
-		fmt.Println("Mass version 1.4.0")
+		fmt.Println("Mass version 1.4.1")
 		fmt.Println("Repository: https://github.com/Demetrous-fd/CryptoPro-Mass-Installer")
 		fmt.Println("Maintainer: Lazydeus (Demetrous-fd)")
 		return
@@ -98,9 +98,12 @@ func main() {
 	}
 	defer logFile.Close()
 
-	w := io.MultiWriter(os.Stdout, logFile)
-	var handler slog.Handler = slog.NewTextHandler(w, loggerOptions)
-	logger := slog.New(handler)
+	logger := slog.New(
+		slogmulti.Fanout(
+			slog.NewTextHandler(logFile, &slog.HandlerOptions{Level: slog.LevelDebug}),
+			slog.NewTextHandler(os.Stdout, loggerOptions),
+		),
+	)
 	slog.SetDefault(logger)
 
 	pwd, err := os.Getwd()
@@ -157,6 +160,15 @@ func main() {
 			core.InstallRootCertificates(certsPath)
 		}
 
-		core.InstallESignatureFromFile(certsPath, rootContainersFolder, *waitFlag, *containerExportableArg)
+		core.InstallESignatureFromFile(certsPath, rootContainersFolder, *containerExportableArg)
+
+		if *waitFlag {
+			if runtime.GOOS == "windows" {
+				core.DeleteVirtualDisk(rootContainersFolder)
+			} // На случай если пользователь вручную закроет окно
+
+			fmt.Print("\n\n\nУстановка сертификатов завершена, нажмите Enter:")
+			fmt.Scanln()
+		}
 	}
 }
