@@ -162,6 +162,9 @@ func InstallESignature(rootContainersFolder string, installParams *ESignatureIns
 		pfxResult, err := InstallContainerFromPfx(installParams.ContainerPath, installParams.PfxPassword, installParams.Exportable)
 		if err != nil {
 			slog.Error(fmt.Sprintf("Не удалось установить контейнер из pfx файла %s", containerFilename))
+			if strings.Contains(pfxResult.Output, "unrecognized option `-pfx") {
+				slog.Warn("Установка контейнеров из pfx файлов доступна с версии КриптоПро CSP 4.0.9944 R3 (Xenocrates) от 22.02.2018.")
+			}
 			return err
 		} else {
 			slog.Debug(fmt.Sprintf("Контейнер установлен из Pfx[%s], Имя контейнера:'%s'", containerFilename, pfxResult.Container.ContainerName))

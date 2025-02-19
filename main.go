@@ -14,21 +14,22 @@ import (
 )
 
 var (
-	versionFlag             *bool
-	debugFlag               *bool
-	waitFlag                *bool
-	skipRootFlag            *bool
-	containerPathInstallArg *string
-	containerPathExportArg  *string
-	containerNameInstallArg *string
-	containerNameExportArg  *string
-	certificatePathArg      *string
-	pfxPasswordInstallArg   *string
-	pfxPasswordExportArg    *string
-	pfxLocationArg          *string
-	containerExportableArg  *bool
-	InstallFlagSet          *flag.FlagSet
-	ExporterFlagSet         *flag.FlagSet
+	versionFlag              *bool
+	debugFlag                *bool
+	waitFlag                 *bool
+	skipRootFlag             *bool
+	containerPathInstallArg  *string
+	containerPathExportArg   *string
+	certificatePathExportArg *string
+	containerNameInstallArg  *string
+	containerNameExportArg   *string
+	certificatePathArg       *string
+	pfxPasswordInstallArg    *string
+	pfxPasswordExportArg     *string
+	pfxLocationArg           *string
+	containerExportableArg   *bool
+	InstallFlagSet           *flag.FlagSet
+	ExporterFlagSet          *flag.FlagSet
 )
 
 func init() {
@@ -49,6 +50,7 @@ func init() {
 	ExporterFlagSet = flag.NewFlagSet("export", flag.ExitOnError)
 	ExporterFlagSet.Usage = ExporterHelpUsage
 	containerPathExportArg = ExporterFlagSet.String("cont", "", "[Требуется] Название контейнера или путь до папки")
+	certificatePathExportArg = ExporterFlagSet.String("cert", "", "Путь до сертификата")
 	containerNameExportArg = ExporterFlagSet.String("name", "", "Новое название контейнера")
 	pfxPasswordExportArg = ExporterFlagSet.String("pass", "", "Пароль от pfx контейнера")
 	pfxLocationArg = ExporterFlagSet.String("o", "", "Путь до нового pfx контейнера")
@@ -75,7 +77,7 @@ func main() {
 	}
 
 	if *versionFlag {
-		fmt.Println("Mass version 1.4.1")
+		fmt.Println("Mass version 1.5.0")
 		fmt.Println("Repository: https://github.com/Demetrous-fd/CryptoPro-Mass-Installer")
 		fmt.Println("Maintainer: Lazydeus (Demetrous-fd)")
 		return
@@ -129,10 +131,11 @@ func main() {
 	// Parsing subcommand flags
 	if slices.Contains(flagArgs, "export") {
 		exportParams := &core.ExportContainerParams{
-			ContainerPath: *containerPathExportArg,
-			ContainerName: *containerNameExportArg,
-			PfxPassword:   *pfxPasswordExportArg,
-			PfxLocation:   *pfxLocationArg,
+			ContainerPath:   *containerPathExportArg,
+			ContainerName:   *containerNameExportArg,
+			CertificatePath: *certificatePathExportArg,
+			PfxPassword:     *pfxPasswordExportArg,
+			PfxLocation:     *pfxLocationArg,
 		}
 		err := core.ExportContainerToPfxCLI(certsPath, rootContainersFolder, exportParams)
 		if err != nil {

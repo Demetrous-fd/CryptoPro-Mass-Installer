@@ -11,10 +11,11 @@ import (
 )
 
 type ExportContainerParams struct {
-	ContainerPath string
-	ContainerName string
-	PfxPassword   string
-	PfxLocation   string
+	ContainerPath   string
+	ContainerName   string
+	CertificatePath string
+	PfxPassword     string
+	PfxLocation     string
 }
 
 func ExportContainerToPfxCLI(certFolderPath string, rootContainersFolder string, params *ExportContainerParams) error {
@@ -26,9 +27,8 @@ func ExportContainerToPfxCLI(certFolderPath string, rootContainersFolder string,
 	var container *cades.Container
 	var containerBeforeExists bool
 	var err error
-	isContainer := IsContainerName(params.ContainerPath)
 
-	if !isContainer {
+	if !IsContainerName(params.ContainerPath) {
 		containerPath, errPath := GetFilePath(params.ContainerPath, certFolderPath)
 		if errPath != nil {
 			params.ContainerPath = ClearDoubleSlashes(params.ContainerPath)
@@ -38,10 +38,14 @@ func ExportContainerToPfxCLI(certFolderPath string, rootContainersFolder string,
 				slog.Error(err.Error())
 				return errPath
 			}
-			isContainer = true
+			containerBeforeExists = true
 
 		} else {
 			containerFilename := filepath.Base(containerPath)
+			if params.CertificatePath == "" {
+				slog.Warn("Укажите путь до сертификата через параметр `-cert <путь до сертификата>`")
+				return errors.New("certificate not set")
+			}
 
 			container, err = InstallContainerFromFolder(containerPath, rootContainersFolder, params.ContainerName)
 			if err != nil {
@@ -57,6 +61,7 @@ func ExportContainerToPfxCLI(certFolderPath string, rootContainersFolder string,
 	} else {
 		params.ContainerPath = ClearDoubleSlashes(params.ContainerPath)
 		container, err = GetContainer(params.ContainerPath)
+		containerBeforeExists = true
 		if err != nil {
 			slog.Error(err.Error())
 			return err
@@ -77,14 +82,43 @@ func ExportContainerToPfxCLI(certFolderPath string, rootContainersFolder string,
 		pfxLocation = filepath.Join(filepath.Dir(params.PfxLocation), filename)
 	}
 
-	if params.ContainerName != "" {
+	if params.ContainerName != "" && !containerBeforeExists {
 		container, err = RenameContainer(container, params.ContainerName)
 
-		if errors.Is(err, cades.ErrContainerNotExportable) {
-			slog.Debug(fmt.Sprintf("Контейнер[%s] не экспортируемый", container.ContainerName))
-			return cades.ErrContainerNotExportable
-		} else if err != nil {
+		if err != nil {
+			if errors.Is(err, cades.ErrContainerNotExportable) {
+				slog.Debug(fmt.Sprintf("Контейнер[%s] не экспортируемый", container.ContainerName))
+				return cades.ErrContainerNotExportable
+			}
 			slog.Debug(fmt.Sprintf("Не удалось переименовать контейнер [%s] -> [%s]", container.ContainerName, params.ContainerName))
+		}
+	} else if params.ContainerName != "" {
+		containerStorageName := strings.ReplaceAll(container.ContainerName, `\\.\`, "")
+		containerStorageName = strings.Split(containerStorageName, `\`)[0]
+
+		location := fmt.Sprintf(`\\.\%s\%s`, containerStorageName, params.ContainerName)
+		if location == container.ContainerName || location == container.UniqueContainerName {
+			slog.Debug(fmt.Sprintf("RenameContainer: The new container name matches the old one. OLD[%s] = NEW[%s]", container.ContainerName, location))
+		}
+
+		m := cades.CadesManager{}
+		container, err = m.CopyContainer(container, location)
+
+		if err != nil {
+			if errors.Is(err, cades.ErrContainerNotExportable) {
+				slog.Debug(fmt.Sprintf("Контейнер[%s] не экспортируемый", container.ContainerName))
+				return cades.ErrContainerNotExportable
+			}
+			slog.Debug(fmt.Sprintf("Не удалось переименовать контейнер [%s] -> [%s]", container.ContainerName, params.ContainerName))
+		} else {
+			defer DeleteContainer(container)
+		}
+	}
+
+	if params.CertificatePath != "" {
+		_, err := LinkCertWithContainer(params.CertificatePath, container.ContainerName)
+		if err != nil {
+			slog.Debug(fmt.Sprintf("Не удалось установить сертификат[%s] в закрытый контейнер[%s]", params.CertificatePath, container.UniqueContainerName))
 		}
 	}
 
@@ -95,13 +129,7 @@ func ExportContainerToPfxCLI(certFolderPath string, rootContainersFolder string,
 		return err
 	}
 
-	slog.Info(fmt.Sprintf("Контейнер[%s] экспортирован в файл: %s", params.ContainerName, pfxPath))
-
-	m := cades.CadesManager{}
-	container, err = m.GetContainer(params.ContainerName)
-	if err == nil && !isContainer && !containerBeforeExists {
-		DeleteContainer(container)
-	}
+	slog.Info(fmt.Sprintf("Контейнер[%s] экспортирован в файл: %s", container.ContainerName, pfxPath))
 
 	return nil
 }
