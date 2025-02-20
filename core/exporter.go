@@ -91,6 +91,8 @@ func ExportContainerToPfxCLI(certFolderPath string, rootContainersFolder string,
 				return cades.ErrContainerNotExportable
 			}
 			slog.Debug(fmt.Sprintf("Не удалось переименовать контейнер [%s] -> [%s]", container.ContainerName, params.ContainerName))
+		} else {
+			defer DeleteContainer(container)
 		}
 	} else if params.ContainerName != "" {
 		containerStorageName := strings.ReplaceAll(container.ContainerName, `\\.\`, "")
