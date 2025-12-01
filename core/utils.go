@@ -14,6 +14,25 @@ import (
 
 var CONTAINER_PATTERN = regexp.MustCompile(`(?m)^\\\\\.\\.*\\.*$`)
 
+type SettingsDefaultBlock struct {
+	NamePattern *string `json:"namePattern,omitempty"`
+	PfxPassword *string `json:"pfxPassword,omitempty"`
+	Exportable  *bool   `json:"exportable,omitempty"`
+}
+
+type SettingsArgsBlock struct {
+	Exportable *bool `json:"exportable,omitempty"`
+	SkipRoot   *bool `json:"skipRoot,omitempty"`
+	SkipWait   *bool `json:"skipWait,omitempty"`
+	Debug      *bool `json:"debug,omitempty"`
+}
+
+type Settings struct {
+	Default SettingsDefaultBlock
+	Args    SettingsArgsBlock
+	Items   *[]*ESignatureInstallParams
+}
+
 func GetRootContainersFolder(virtualDiskPath string) (string, error) {
 	var rootContainersFolder string
 	if runtime.GOOS == "windows" {

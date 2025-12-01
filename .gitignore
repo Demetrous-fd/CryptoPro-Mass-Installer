@@ -1,7 +1,9 @@
-bin/
-README.pdf
-data.csv
+test/
 certs/
-src/logger.log
-logger.log
-test/test_certs
+bin/
+*.pdf
+*.csv
+*.log
+*.json
+*.txt
+.vscode/

@@ -16,12 +16,12 @@ commands = {
 
 build_commands = {
     "amd64": [
-        f"windows;go build -trimpath -ldflags \"-s -w\"  -o {windows_folder}/mass.exe {files}",
-        f"linux;go build -trimpath -ldflags \"-s -w\"  -o {linux_folder}/mass {files}",
+        f"windows;go build -trimpath -ldflags \"-s -w\"  -o {windows_folder}/cpmass.exe {files}",
+        f"linux;go build -trimpath -ldflags \"-s -w\"  -o {linux_folder}/cpmass {files}",
     ],
     "386": [
-        f"windows;go build -trimpath -ldflags \"-s -w\"  -o {windows_folder}/mass_32.exe {files}",
-        f"linux;go build -trimpath -ldflags \"-s -w\"  -o {linux_folder}/mass_32 {files}",
+        f"windows;go build -trimpath -ldflags \"-s -w\"  -o {windows_folder}/cpmass_32.exe {files}",
+        f"linux;go build -trimpath -ldflags \"-s -w\"  -o {linux_folder}/cpmass_32 {files}",
     ],
 }
 
@@ -47,8 +47,8 @@ if len(sys.argv) >= 2:
             os_name, command = command.split(";", 1)
             os.environ["GOOS"] = os_name
             os.system(command)
-    create_zip(f"{windows_folder}/mass_windows.zip", windows_folder)
-    create_zip(f"{linux_folder}/mass_linux.zip", linux_folder)
+    create_zip(f"{windows_folder}/cpmass_windows.zip", windows_folder)
+    create_zip(f"{linux_folder}/cpmass_linux.zip", linux_folder)
 else:
     os.system(commands["run"])
         

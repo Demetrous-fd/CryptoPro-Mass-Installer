@@ -53,7 +53,6 @@ func DeleteVirtualDisk(diskLetter string) error {
 
 	err := ExecuteSubst(letter, "/D")
 	if err != nil {
-		slog.Error(fmt.Sprintf("Не удалось автоматически удалить виртуальный диск, выполните команду в консоли: subst %s /D", letter))
 		return err
 	}
 	slog.Debug(fmt.Sprintf("Virtual disk %s deleted", diskLetter))

@@ -14,32 +14,57 @@ import (
 	"golang.org/x/exp/slog"
 )
 
-func InstallESignatureFromFile(certPath string, rootContainersFolder string, exportable bool) {
-	gocsv.SetCSVReader(func(in io.Reader) gocsv.CSVReader {
-		r := csv.NewReader(in)
-		r.Comma = ';'
-		r.Comment = '#'
-		return r
-	})
+func InstallESignatureFromFile(certPath string, rootContainersFolder string, settings Settings) {
+	items := []*ESignatureInstallParams{}
 
-	in, err := os.Open("data.csv")
-	if err != nil {
-		panic(err)
+	if settings.Items != nil && len(*settings.Items) > 0 {
+		items = *settings.Items
+	} else if _, err := os.Stat("data.csv"); errors.Is(err, os.ErrNotExist) {
+		pair, err := FindDigitalSignaturePairs(certPath)
+		if err != nil {
+			slog.Error(err.Error())
+			return
+		}
+		items = pair
+	} else {
+		gocsv.SetCSVReader(func(in io.Reader) gocsv.CSVReader {
+			r := csv.NewReader(in)
+			r.Comma = ';'
+			r.Comment = '#'
+			return r
+		})
+
+		in, err := os.Open("data.csv")
+		if err != nil {
+			slog.Error(err.Error())
+			return
+		}
+		defer in.Close()
+
+		if err := gocsv.UnmarshalFile(in, &items); err != nil {
+			slog.Error(err.Error())
+			return
+		}
 	}
-	defer in.Close()
-
-	certificates := []*ESignatureInstallParams{}
-	if err := gocsv.UnmarshalFile(in, &certificates); err != nil {
-		panic(err)
-	}
-
-	for _, installParams := range certificates {
+	for _, installParams := range items {
 		containerPath := filepath.Join(certPath, installParams.ContainerPath)
 		installParams.ContainerPath = containerPath
 
+		if installParams.ContainerName == "" && settings.Default.NamePattern != nil {
+			installParams.ContainerName = *settings.Default.NamePattern
+		}
+
+		if filepath.Ext(installParams.ContainerPath) == ".pfx" && installParams.PfxPassword == nil && settings.Default.PfxPassword != nil {
+			installParams.PfxPassword = settings.Default.PfxPassword
+		}
+
 		certificatePath := filepath.Join(certPath, installParams.CertificatePath)
 		installParams.CertificatePath = certificatePath
-		installParams.Exportable = exportable
+
+		if installParams.Exportable == nil {
+			installParams.Exportable = settings.Default.Exportable
+		}
+
 		InstallESignature(rootContainersFolder, installParams)
 	}
 }

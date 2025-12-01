@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"lazydeus/CryptoMassInstall/core"
@@ -14,29 +15,23 @@ import (
 )
 
 var (
-	versionFlag              *bool
-	debugFlag                *bool
-	waitFlag                 *bool
-	skipRootFlag             *bool
-	containerPathInstallArg  *string
-	containerPathExportArg   *string
-	certificatePathExportArg *string
-	containerNameInstallArg  *string
-	containerNameExportArg   *string
-	certificatePathArg       *string
-	pfxPasswordInstallArg    *string
-	pfxPasswordExportArg     *string
-	pfxLocationArg           *string
-	containerExportableArg   *bool
-	InstallFlagSet           *flag.FlagSet
-	ExporterFlagSet          *flag.FlagSet
+	versionFlag             *bool
+	debugFlag               *bool
+	skipWaitFlag            *bool
+	skipRootFlag            *bool
+	containerPathInstallArg *string
+	containerNameInstallArg *string
+	certificatePathArg      *string
+	pfxPasswordInstallArg   *string
+	containerExportableArg  *bool
+	InstallFlagSet          *flag.FlagSet
 )
 
 func init() {
 	flag.Usage = DefaultHelpUsage
 	versionFlag = flag.Bool("version", false, "Отобразить версию программы")
 	debugFlag = flag.Bool("debug", false, "Включить отладочную информацию в консоли")
-	waitFlag = flag.Bool("wait", true, "Перед выходом ожидать нажатия клавиши enter")
+	skipWaitFlag = flag.Bool("skip-wait", false, "Пропустить ожидание перед выходом")
 	skipRootFlag = flag.Bool("skip-root", false, "Пропустить установку корневых сертификатов")
 	containerExportableArg = flag.Bool("exportable", false, "Разрешить экспорт контейнеров")
 
@@ -46,14 +41,6 @@ func init() {
 	certificatePathArg = InstallFlagSet.String("cert", "", "[Требуется] Путь до файла сертификата")
 	containerNameInstallArg = InstallFlagSet.String("name", "", "Название контейнера")
 	pfxPasswordInstallArg = InstallFlagSet.String("pfx_pass", "", "Пароль от pfx контейнера")
-
-	ExporterFlagSet = flag.NewFlagSet("export", flag.ExitOnError)
-	ExporterFlagSet.Usage = ExporterHelpUsage
-	containerPathExportArg = ExporterFlagSet.String("cont", "", "[Требуется] Название контейнера или путь до папки")
-	certificatePathExportArg = ExporterFlagSet.String("cert", "", "Путь до сертификата")
-	containerNameExportArg = ExporterFlagSet.String("name", "", "Новое название контейнера")
-	pfxPasswordExportArg = ExporterFlagSet.String("pass", "", "Пароль от pfx контейнера")
-	pfxLocationArg = ExporterFlagSet.String("o", "", "Путь до нового pfx контейнера")
 }
 
 func main() {
@@ -70,14 +57,48 @@ func main() {
 		switch cmd {
 		case "install":
 			InstallFlagSet.Parse(args)
-		case "export":
-			ExporterFlagSet.Parse(args)
 		default:
 		}
 	}
 
+	pwd, err := os.Getwd()
+	if err != nil {
+		code = 1
+		return
+	}
+
+	var settings core.Settings
+	settingsPath := filepath.Join(pwd, "settings.json")
+	settingsFile, err := os.ReadFile(settingsPath)
+	if err == nil {
+		err = json.Unmarshal(settingsFile, &settings)
+		if err == nil {
+			if settings.Args.Debug != nil {
+				debugFlag = settings.Args.Debug
+			}
+
+			if settings.Args.SkipWait != nil {
+				skipWaitFlag = settings.Args.SkipWait
+			}
+
+			if settings.Default.Exportable != nil {
+				settings.Args.Exportable = settings.Default.Exportable
+			}
+
+			if settings.Args.Exportable != nil {
+				containerExportableArg = settings.Args.Exportable
+			} else {
+				settings.Default.Exportable = containerExportableArg
+			}
+
+			if settings.Args.SkipRoot != nil {
+				skipRootFlag = settings.Args.SkipRoot
+			}
+		}
+	}
+
 	if *versionFlag {
-		fmt.Println("Mass version 1.5.1")
+		fmt.Println("CryptoPro Mass Installer version 1.6.0")
 		fmt.Println("Repository: https://github.com/Demetrous-fd/CryptoPro-Mass-Installer")
 		fmt.Println("Maintainer: Lazydeus (Demetrous-fd)")
 		return
@@ -92,7 +113,7 @@ func main() {
 		Level:     loggerLevel,
 	}
 
-	logFile, err := os.Create("logger.log")
+	logFile, err := os.Create(filepath.Join(pwd, "logger.log"))
 	if err != nil {
 		code = 1
 		slog.Error(err.Error())
@@ -108,13 +129,6 @@ func main() {
 	)
 	slog.SetDefault(logger)
 
-	pwd, err := os.Getwd()
-	if err != nil {
-		code = 1
-		slog.Error(err.Error())
-		return
-	}
-
 	certsPath := filepath.Join(pwd, "certs")
 	_ = os.Mkdir(certsPath, os.ModePerm)
 
@@ -129,43 +143,30 @@ func main() {
 	}
 
 	// Parsing subcommand flags
-	if slices.Contains(flagArgs, "export") {
-		exportParams := &core.ExportContainerParams{
-			ContainerPath:   *containerPathExportArg,
-			ContainerName:   *containerNameExportArg,
-			CertificatePath: *certificatePathExportArg,
-			PfxPassword:     *pfxPasswordExportArg,
-			PfxLocation:     *pfxLocationArg,
-		}
-		err := core.ExportContainerToPfxCLI(certsPath, rootContainersFolder, exportParams)
-		if err != nil {
-			code = 2
-			slog.Error(err.Error())
-			return
-		}
-
-	} else if slices.Contains(flagArgs, "install") {
+	if slices.Contains(flagArgs, "install") {
 		installParams := &core.ESignatureInstallParams{
 			ContainerPath:   *containerPathInstallArg,
 			ContainerName:   *containerNameInstallArg,
 			CertificatePath: *certificatePathArg,
-			PfxPassword:     *pfxPasswordInstallArg,
-			Exportable:      *containerExportableArg,
+			PfxPassword:     pfxPasswordInstallArg,
+			Exportable:      containerExportableArg,
 		}
 		err := core.InstallESignatureCLI(certsPath, rootContainersFolder, installParams, false)
 		if err != nil {
 			code = 2
 			slog.Error(err.Error())
 			return
+		} else {
+			core.AbsorbCertificatesFromContainers()
 		}
 	} else {
 		if !*skipRootFlag {
 			core.InstallRootCertificates(certsPath)
 		}
 
-		core.InstallESignatureFromFile(certsPath, rootContainersFolder, *containerExportableArg)
-
-		if *waitFlag {
+		core.InstallESignatureFromFile(certsPath, rootContainersFolder, settings)
+		core.AbsorbCertificatesFromContainers()
+		if !*skipWaitFlag {
 			if runtime.GOOS == "windows" {
 				core.DeleteVirtualDisk(rootContainersFolder)
 			} // На случай если пользователь вручную закроет окно
