@@ -7,11 +7,11 @@ import (
 	"os/user"
 	"path/filepath"
 	"strings"
+	"time"
 
 	cades "github.com/Demetrous-fd/CryptoPro-Adapter"
 	"github.com/google/uuid"
 	"golang.org/x/exp/slog"
-	"golang.org/x/text/encoding/charmap"
 )
 
 func IsCertificateExists(thumbprint string, store string) (bool, error) {
@@ -89,16 +89,8 @@ func InstallContainerFromFolder(path string, rootContainersFolder string, contai
 
 var cachedUserSid string
 
-func RenameContainer(container *cades.Container, newContainerName string) (*cades.Container, error) {
+func RenameContainer(container *cades.Container, containerName ContainerName) (*cades.Container, error) {
 	m := cades.CadesManager{}
-
-	decoder := charmap.Windows1251.NewDecoder()
-	newContainerNameUtf8, err := decoder.String(newContainerName)
-	if err != nil {
-		slog.Debug(fmt.Sprintf("Cant decode cp1251 string[%s]: %s", newContainerName, err))
-		return m.RenameContainer(container, newContainerNameUtf8)
-	}
-
 	user, err := user.Current()
 
 	var username string
@@ -111,7 +103,7 @@ func RenameContainer(container *cades.Container, newContainerName string) (*cade
 
 	if err != nil {
 		slog.Debug(fmt.Sprintf("Cant get username for direct rename, use cryptopro utils: %s", err))
-		return m.RenameContainer(container, newContainerNameUtf8)
+		return m.RenameContainer(container, containerName.Normal)
 	}
 
 	if strings.Contains(container.UniqueContainerName, "REGISTRY") {
@@ -129,42 +121,42 @@ func RenameContainer(container *cades.Container, newContainerName string) (*cade
 
 		if cachedUserSid == "" {
 			slog.Debug(fmt.Sprintf("Cant get user sid for direct rename, use cryptopro utils: %s", err))
-			return m.RenameContainer(container, newContainerNameUtf8)
+			return m.RenameContainer(container, containerName.Normal)
 		}
 
 		containerNameRaw := strings.Split(container.ContainerName, `\`)
-		containerName := containerNameRaw[len(containerNameRaw)-1]
+		currentContainerName := containerNameRaw[len(containerNameRaw)-1]
 
-		ok, err := cades.DirectRenameContainerRegistry(cachedUserSid, containerName, newContainerName)
+		ok, err := cades.DirectRenameContainerRegistry(cachedUserSid, currentContainerName, containerName.Windows1251)
 		if !ok {
 			slog.Debug(fmt.Sprintf("Error in DirectRenameContainerRegistry, use cryptopro utils: %s", err))
-			return m.RenameContainer(container, newContainerNameUtf8)
+			return m.RenameContainer(container, containerName.Normal)
 		}
 
 		return &cades.Container{
-			ContainerName:       fmt.Sprintf(`\\.\REGISTRY\%s`, newContainerNameUtf8),
-			UniqueContainerName: fmt.Sprintf(`\\.\REGISTRY\REGISTRY\\%s`, newContainerNameUtf8),
+			ContainerName:       fmt.Sprintf(`\\.\REGISTRY\%s`, containerName.Normal),
+			UniqueContainerName: fmt.Sprintf(`\\.\REGISTRY\REGISTRY\\%s`, containerName.Normal),
 		}, nil
 	}
 
 	if strings.Contains(container.UniqueContainerName, "HDIMAGE") {
-		ok, err := cades.DirectRenameContainerHDImage(username, container.UniqueContainerName, newContainerName)
+		ok, err := cades.DirectRenameContainerHDImage(username, container.UniqueContainerName, containerName.Windows1251)
 		if err != nil {
 			slog.Debug(fmt.Sprintf("Error in DirectRenameContainerHDImage, use cryptopro utils: %s", err))
-			return m.RenameContainer(container, newContainerNameUtf8)
+			return m.RenameContainer(container, containerName.Normal)
 		}
 
 		if ok {
-			newContainer, err := m.GetContainer(fmt.Sprintf(`\\.\HDIMAGE\%s`, newContainerNameUtf8))
+			newContainer, err := m.GetContainer(fmt.Sprintf(`\\.\HDIMAGE\%s`, containerName.Normal))
 			if err != nil {
 				slog.Debug(fmt.Sprintf("Error after DirectRenameContainerHDImage, use cryptopro utils: %s", err))
-				return m.RenameContainer(container, newContainerNameUtf8)
+				return m.RenameContainer(container, containerName.Normal)
 			}
 			return newContainer, nil
 		}
 	}
 
-	return m.RenameContainer(container, newContainerNameUtf8)
+	return m.RenameContainer(container, containerName.Normal)
 }
 
 func GetContainer(containerName string) (*cades.Container, error) {
@@ -173,10 +165,10 @@ func GetContainer(containerName string) (*cades.Container, error) {
 	return result, err
 }
 
-func ExportContainerToPfx(container *cades.Container, filePath string, password string) (string, error) {
+func ExportContainerToPfxByThumbprint(container *cades.Container, thumbprint string, filePath string, password string) (string, error) {
 	m := cades.CadesManager{}
 
-	_, err := m.ExportContainerToPfx(filePath, container.UniqueContainerName, password)
+	_, err := m.ExportContainerToPfxByThumbprint(filePath, thumbprint, password)
 	if err != nil {
 		slog.Debug(fmt.Sprintf("[Folder to pfx] Не удалось экспортировать контейнер[%s] в pfx[%s] файл, error: %s", container.ContainerName, filePath, err))
 		return "", err
@@ -221,35 +213,83 @@ func InstallESignature(rootContainersFolder string, installParams *ESignatureIns
 
 	if _, err := os.Stat(installParams.ContainerPath); errors.Is(err, os.ErrNotExist) {
 		slog.Debug(err.Error())
-		slog.Warn(fmt.Sprintf("Файл/Директория контейнера не найден: %s", installParams.ContainerPath))
+		slog.Error(fmt.Sprintf("Файл/Директория контейнера не найден: %s", installParams.ContainerPath))
 		return err
 	}
 
 	if _, err := os.Stat(installParams.CertificatePath); errors.Is(err, os.ErrNotExist) {
-		slog.Warn(fmt.Sprintf("Файл сертификата не найден: %s", installParams.CertificatePath))
+		slog.Error(fmt.Sprintf("Файл сертификата не найден: %s", installParams.CertificatePath))
 		return err
 	}
 
 	thumbprint, err := cades.GetCertificateThumbprintFromFile(installParams.CertificatePath)
 	if err != nil {
-		slog.Warn(fmt.Sprintf("Не удалось получить thumbprint сертификата: %s", certificateFilename))
+		slog.Error(fmt.Sprintf("Не удалось получить thumbprint сертификата[%s]", certificateFilename))
 		return err
 	}
 
 	ok, err := IsCertificateWithContainerExists(thumbprint, "")
 	if ok {
-		slog.Warn(fmt.Sprintf("Контейнер и сертификат[%s] с thumbprint[%s] существует в хранилище.", certificateFilename, thumbprint))
+		slog.Warn(fmt.Sprintf("Контейнер с сертификатом[%s] существует в хранилище.", certificateFilename))
 		return err
+	}
+
+	certificateRaw, err := os.ReadFile(installParams.CertificatePath)
+	if err != nil {
+		slog.Error(fmt.Sprintf("Не удалось прочитать сертификат[%s]", installParams.CertificatePath))
+		slog.Debug(fmt.Sprintf("Cant read[%s]: %s", installParams.CertificatePath, err))
+		return err
+	}
+
+	certificateX509, err := cades.LoadCertificate(certificateRaw)
+	if err != nil {
+		slog.Error(fmt.Sprintf("Не удалось прочитать сертификат[%s]", installParams.CertificatePath))
+		slog.Debug(fmt.Sprintf("Cant load[%s]: %s", installParams.CertificatePath, err))
+		return err
+	}
+
+	gostCertificate, err := cades.ParseGostCertificate(certificateX509)
+	if err != nil {
+		slog.Error(fmt.Sprintf("Не удалось прочитать сертификат[%s]", installParams.CertificatePath))
+		slog.Debug(fmt.Sprintf("Cant parse[%s]: %s", installParams.CertificatePath, err))
+		return err
+	}
+
+	containerSubject := FormatNewName("#subject.surname #subject.initials - #subject.title", gostCertificate)
+
+	now := time.Now()
+	if now.After(gostCertificate.NotAfter) {
+		slog.Warn(fmt.Sprintf(
+			"У сертификата[%s] истек срок действия (был действителен до %s)",
+			certificateFilename, gostCertificate.NotAfter.Format("02.01.2006 15:04:05"),
+		))
+	}
+
+	expireAfterHours := gostCertificate.NotAfter.Sub(now).Hours()
+	if expireAfterHours > 0 {
+		expireAfterDays := int(expireAfterHours / 24)
+		if expireAfterDays <= 30 {
+			slog.Warn(fmt.Sprintf(
+				"Сертификат[%s] истекает через %d %s (действителен до %s)",
+				certificateFilename, expireAfterDays, DeclOfNum(expireAfterDays),
+				gostCertificate.NotAfter.Format("02.01.2006 15:04:05"),
+			))
+		}
 	}
 
 	var container *cades.Container
 	if filepath.Ext(installParams.ContainerPath) != ".pfx" {
+		if IsPrivateKeyMalformed(installParams.ContainerPath) {
+			slog.Error(fmt.Sprintf("Контейнер[%s] поврежден (Владелец: %s)", containerFilename, containerSubject.Normal))
+			return os.ErrInvalid
+		}
+
 		container, err = InstallContainerFromFolder(installParams.ContainerPath, rootContainersFolder, "")
 		if err != nil {
-			slog.Warn(fmt.Sprintf("Не удалось установить контейнер из папки: %s", containerFilename))
+			slog.Error(fmt.Sprintf("Не удалось установить контейнер[%s] (Владелец: %s)", containerFilename, containerSubject.Normal))
 			return err
 		} else {
-			slog.Debug(fmt.Sprintf("Контейнер установлен из папки[%s], Имя контейнера:'%s'", containerFilename, container.ContainerName))
+			slog.Debug(fmt.Sprintf("Контейнер[%s] установлен, имя[%s]", containerFilename, container.ContainerName))
 		}
 
 		if installParams.Exportable != nil && !*installParams.Exportable {
@@ -259,7 +299,7 @@ func InstallESignature(rootContainersFolder string, installParams *ESignatureIns
 
 			ok, _ := LinkCertWithContainer(installParams.CertificatePath, container.ContainerName)
 			if ok {
-				pfxPath, err = ExportContainerToPfx(container, pfxPath, "")
+				pfxPath, err = ExportContainerToPfxByThumbprint(container, thumbprint, pfxPath, "")
 				if err == nil {
 					containerFilename = pfxName
 					emptyPassword := ""
@@ -277,22 +317,26 @@ func InstallESignature(rootContainersFolder string, installParams *ESignatureIns
 	if filepath.Ext(installParams.ContainerPath) == ".pfx" {
 		pfxResult, err := InstallContainerFromPfx(installParams.ContainerPath, *installParams.PfxPassword, *installParams.Exportable)
 		if err != nil {
-			slog.Warn(fmt.Sprintf("Не удалось установить контейнер из pfx файла %s", containerFilename))
+			slog.Error(fmt.Sprintf("Не удалось установить контейнер из pfx файла[%s] (Владелец: %s)", containerFilename, containerSubject.Normal))
 			if strings.Contains(pfxResult.Output, "unrecognized option `-pfx") {
 				slog.Warn("Установка контейнеров из pfx файлов доступна с версии КриптоПро CSP 4.0.9944 R3 (Xenocrates) от 22.02.2018.")
 			}
 			return err
-		} else {
-			slog.Debug(fmt.Sprintf("Контейнер установлен из Pfx[%s], Имя контейнера:'%s'", containerFilename, pfxResult.Container.ContainerName))
 		}
+
+		if pfxResult.Container.ContainerName == "" && pfxResult.Container.UniqueContainerName == "" {
+			slog.Error(fmt.Sprintf(
+				"Не удалось установить контейнер из pfx файла[%s], отсутствует закрытый ключ (Владелец: %s)",
+				containerFilename, containerSubject.Normal,
+			))
+			return err
+		}
+
+		slog.Debug(fmt.Sprintf("Контейнер установлен из Pfx[%s], Имя контейнера:'%s'", containerFilename, pfxResult.Container.ContainerName))
 		container = &pfxResult.Container
 	}
 
 	if installParams.ContainerName != "" {
-		certificateRaw, _ := os.ReadFile(installParams.CertificatePath)
-		certificateX509, _ := cades.LoadCertificate(certificateRaw)
-		gostCertificate, _ := cades.ParseGostCertificate(certificateX509)
-
 		oldContainerName := container.ContainerName
 		newContainerName := FormatNewName(installParams.ContainerName, gostCertificate)
 
@@ -304,7 +348,7 @@ func InstallESignature(rootContainersFolder string, installParams *ESignatureIns
 			}
 			return err
 		} else if err != nil {
-			slog.Warn(fmt.Sprintf("Не удалось переименовать контейнер [%s] -> [%s]", container.ContainerName, newContainerName))
+			slog.Error(fmt.Sprintf("Не удалось переименовать контейнер [%s] -> [%s]", container.ContainerName, newContainerName.Normal))
 			if filepath.Ext(installParams.ContainerPath) == ".pfx" {
 				DeleteContainer(container)
 			}
@@ -318,10 +362,13 @@ func InstallESignature(rootContainersFolder string, installParams *ESignatureIns
 	isCertLink, err := LinkCertWithContainer(installParams.CertificatePath, container.ContainerName)
 	if err != nil || !isCertLink {
 		DeleteContainer(container)
-		slog.Warn(fmt.Sprintf("Не удалось установить сертификат[%s] в закрытый контейнер[%s], изменения отменены", certificateFilename, container.UniqueContainerName))
+		slog.Error(fmt.Sprintf(
+			"Не удалось установить сертификат[%s] в контейнер[%s], изменения отменены",
+			certificateFilename, container.UniqueContainerName,
+		))
 		return err
 	} else {
-		slog.Info(fmt.Sprintf("Сертификат[%s] установлен в закрытый контейнер:'%s'", certificateFilename, container.ContainerName))
+		slog.Info(fmt.Sprintf("Установлен контейнер[%s]", container.ContainerName))
 	}
 	return nil
 }

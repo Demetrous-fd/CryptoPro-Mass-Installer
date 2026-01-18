@@ -9,7 +9,13 @@ import (
 	"golang.org/x/text/encoding/charmap"
 )
 
-func FormatNewName(pattern string, certificate *cades.GostCertificate) string {
+type ContainerName struct {
+	Normal      string
+	Windows1251 string
+}
+
+func FormatNewName(pattern string, certificate *cades.GostCertificate) ContainerName {
+	result := ContainerName{}
 	names := []string{
 		"common_name",
 		"surname",
@@ -88,12 +94,14 @@ func FormatNewName(pattern string, certificate *cades.GostCertificate) string {
 		}
 		pattern = strings.ReplaceAll(pattern, "#"+key, value)
 	}
+	result.Normal = pattern
 
 	encoder := charmap.Windows1251.NewEncoder()
-	result, err := encoder.String(pattern)
+	cp1251String, err := encoder.String(pattern)
 	if err != nil {
-		return ""
+		return ContainerName{}
 	}
+	result.Windows1251 = cp1251String
 
 	return result
 }

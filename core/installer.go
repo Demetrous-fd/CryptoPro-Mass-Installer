@@ -46,7 +46,10 @@ func InstallESignatureFromFile(certPath string, rootContainersFolder string, set
 			return
 		}
 	}
+
+	slog.Info(fmt.Sprintf("Количество устанавливаемых ЭП: %d", len(items)))
 	for _, installParams := range items {
+		fmt.Println()
 		containerPath := filepath.Join(certPath, installParams.ContainerPath)
 		installParams.ContainerPath = containerPath
 
